@@ -1,4 +1,4 @@
-name: TF Docs
+name: TF Docs Workflow
 
 on:
   pull_request:
@@ -10,6 +10,15 @@ on:
 jobs:
   generate-docs:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        module:
+          - path: "./proxmox/vm"
+            name: "vm"
+          - path: "./proxmox/lxc"
+            name: "lxc"
+          - path: "./proxmox/cloud-img-download"
+            name: "cloud-img"
     container:
       image: ghcr.io/shakir85/tf-tools:latest
 
@@ -26,17 +35,38 @@ jobs:
 
       - name: Fetch latest changes
         run: |
+          git config --global pull.rebase false
           git fetch origin ${{ github.head_ref }}
           git pull origin ${{ github.head_ref }}
 
-      - name: Generate VM Module Docs
-        run: terraform-docs markdown document ./proxmox/vm --output-file  README.md --output-mode inject
+      - name: Generate Docs
+        run: |
+          terraform-docs markdown document ${{ matrix.module.path }} --output-file README.md --output-mode inject
 
-      - name: Generate LX Module Docs
-        run: terraform-docs markdown document ./proxmox/lxc --output-file  README.md --output-mode inject
+      - name: Upload generated docs
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-docs-${{ matrix.module.name }}
+          path: ${{ matrix.module.path }}/README.md
 
-      - name: Generate Cloud-Image Module Docs
-        run: terraform-docs markdown document ./proxmox/cloud-img-download --output-file  README.md --output-mode inject
+  commit-changes:
+    runs-on: ubuntu-latest
+    needs: generate-docs
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Run Git Setup
+        uses: ./.github/actions/setup-git
+        with:
+          repo-path: /__w/proxmox-tf-modules/proxmox-tf-modules
+
+      - name: Download all docs
+        uses: actions/download-artifact@v4
+        with:
+          path: .
 
       - name: Commit changes
         run: |

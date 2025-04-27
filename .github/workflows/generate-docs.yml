@@ -1,0 +1,44 @@
+name: Generate Terraform Docs
+
+on:
+  workflow_call:
+    inputs:
+      module_path:
+        type: string
+        description: "The path to the Terraform module to document"
+        required: true
+      output_file:
+        type: string
+        description: "The README file to update"
+        required: true
+      container_image:
+        type: string
+        description: "Container image which has terraform-doc binary"
+        required: true
+
+jobs:
+  generate-docs:
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ inputs.container_image }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Run Git Setup
+        uses: ./.github/actions/setup-git
+        with:
+          repo-path: /__w/proxmox-tf-modules/proxmox-tf-modules
+
+      - name: Fetch latest changes
+        run: |
+          git fetch origin ${{ github.head_ref }}
+          git pull origin ${{ github.head_ref }}
+
+      - name: Generate Docs
+        run: |
+          terraform-docs markdown document ${{ inputs.module_path }} --output-file ${{ inputs.module_path }}/README.md --output-mode inject
