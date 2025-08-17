@@ -54,7 +54,7 @@ jobs:
           path: ${{ matrix.module.path }}/README.md
 
   commit-changes:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: generate-docs
     steps:
       - name: Checkout code

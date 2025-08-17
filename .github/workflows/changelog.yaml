@@ -1,0 +1,37 @@
+name: Update Changelog
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  commitlint:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-git
+        with:
+          repo-path: /__w/proxmox-tf-modules/proxmox-tf-modules
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - run: npm install -g conventional-changelog-cli @commitlint/cli @commitlint/config-conventional
+
+      - name: Validate commit messages
+        run: npx commitlint --from=${{ github.event.pull_request.base.sha }} --to=HEAD
+
+      - run: conventional-changelog -p angular -i CHANGELOG.md -s
+
+      - name: Commit changelog
+        run: |
+          git add CHANGELOG.md
+          git commit -m "docs(changelog): update changelog [skip ci]" || echo "No changes to commit"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
